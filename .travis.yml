@@ -1,112 +1,97 @@
 language: c
 
-sudo: true
 dist: trusty
+sudo: required
+services:
+- docker
 
-cache:
-  directories:
-    - $HOME/.ccache
+env:
+  matrix:
+  - JOB_ARCH=amd64
+  - JOB_ARCH=arm64
+  - JOB_ARCH=armel
+  - JOB_ARCH=armhf
+  - JOB_ARCH=i386
+  - JOB_ARCH=mips
+  - JOB_ARCH=mips64el
+  - JOB_ARCH=mipsel
+  - JOB_ARCH=ppc64el
+  - JOB_ARCH=s390x
+  global:
+  - DOCKER_EXEC_ROOT="sudo docker exec --interactive --tty --user root test_container"
+  - DOCKER_EXEC="sudo docker exec --interactive --tty test_container"
+  - DOCKER_EXEC_NOTTY="sudo docker exec test_container"
+  - BINTRAY_USER=laarid
+  - BINTRAY_REPO=main
+  - BINTRAY_COMPONENT=main
+  - BINTRAY_DESC="The Mesa 3D Graphics Library"
+
+branches:
+  only:
+  - master
+  - release
 
 addons:
   apt:
+    sources:
+    - sourceline: 'deb http://archive.ubuntu.com/ubuntu/ devel universe'
     packages:
-      - libdrm-dev
-      - x11proto-xf86vidmode-dev
-      - libexpat1-dev
-      - libxcb-dri2-0-dev
-      - libx11-xcb-dev
-      - llvm-3.5-dev
-      # llvm-config is not in the dev package?
-      - llvm-3.5
-      # LLVM packaging is broken and misses this dep.
-      - libedit-dev
-      - scons
+    - binfmt-support
+    - qemu-user-static
 
-env:
-  global:
-    - XORG_RELEASES=http://xorg.freedesktop.org/releases/individual
-    - XCB_RELEASES=http://xcb.freedesktop.org/dist
-    - XORGMACROS_VERSION=util-macros-1.19.0
-    - GLPROTO_VERSION=glproto-1.4.17
-    - DRI2PROTO_VERSION=dri2proto-2.8
-    - DRI3PROTO_VERSION=dri3proto-1.0
-    - PRESENTPROTO_VERSION=presentproto-1.0
-    - LIBPCIACCESS_VERSION=libpciaccess-0.13.4
-    - LIBDRM_VERSION=libdrm-2.4.65
-    - XCBPROTO_VERSION=xcb-proto-1.11
-    - LIBXCB_VERSION=libxcb-1.11
-    - LIBXSHMFENCE_VERSION=libxshmfence-1.2
-    - PKG_CONFIG_PATH=$HOME/prefix/lib/pkgconfig
-  matrix:
-    - BUILD=make
-    - BUILD=scons
+cache:
+- apt
+
+before_install:
+- |
+  sudo docker run --detach --interactive --tty \
+    --name test_container \
+    --volume ${TRAVIS_BUILD_DIR%${TRAVIS_REPO_SLUG}}:${TRAVIS_BUILD_DIR%${TRAVIS_REPO_SLUG}} \
+    --workdir ${TRAVIS_BUILD_DIR} \
+    --add-host dl.bintray.com:$(nslookup dl.bintray.com | grep -m1 -A1 Name: | grep Address: | awk '{print $2}') \
+    laarid/devel:${JOB_ARCH} \
+    /bin/bash
 
 install:
-  - export PATH="/usr/lib/ccache:$PATH"
-  - pip install --user mako
-
-  # Since libdrm gets updated in configure.ac regularly, try to pick up the
-  # latest version from there.
-  - for line in `grep "^LIBDRM_.*_REQUIRED=" configure.ac`; do
-      old_ver=`echo $LIBDRM_VERSION | sed 's/libdrm-//'`;
-      new_ver=`echo $line | sed 's/.*REQUIRED=//'`;
-      if `echo "$old_ver,$new_ver" | tr ',' '\n' | sort -Vc 2> /dev/null`; then
-        export LIBDRM_VERSION="libdrm-$new_ver";
-      fi;
-    done
-
-  # Install dependencies where we require specific versions (or where
-  # disallowed by Travis CI's package whitelisting).
-
-  - wget $XORG_RELEASES/util/$XORGMACROS_VERSION.tar.bz2
-  - tar -jxvf $XORGMACROS_VERSION.tar.bz2
-  - (cd $XORGMACROS_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget $XORG_RELEASES/proto/$GLPROTO_VERSION.tar.bz2
-  - tar -jxvf $GLPROTO_VERSION.tar.bz2
-  - (cd $GLPROTO_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget $XORG_RELEASES/proto/$DRI2PROTO_VERSION.tar.bz2
-  - tar -jxvf $DRI2PROTO_VERSION.tar.bz2
-  - (cd $DRI2PROTO_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget $XORG_RELEASES/proto/$DRI3PROTO_VERSION.tar.bz2
-  - tar -jxvf $DRI3PROTO_VERSION.tar.bz2
-  - (cd $DRI3PROTO_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget $XORG_RELEASES/proto/$PRESENTPROTO_VERSION.tar.bz2
-  - tar -jxvf $PRESENTPROTO_VERSION.tar.bz2
-  - (cd $PRESENTPROTO_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget $XCB_RELEASES/$XCBPROTO_VERSION.tar.bz2
-  - tar -jxvf $XCBPROTO_VERSION.tar.bz2
-  - (cd $XCBPROTO_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget $XCB_RELEASES/$LIBXCB_VERSION.tar.bz2
-  - tar -jxvf $LIBXCB_VERSION.tar.bz2
-  - (cd $LIBXCB_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget $XORG_RELEASES/lib/$LIBPCIACCESS_VERSION.tar.bz2
-  - tar -jxvf $LIBPCIACCESS_VERSION.tar.bz2
-  - (cd $LIBPCIACCESS_VERSION && ./configure --prefix=$HOME/prefix && make install)
-
-  - wget http://dri.freedesktop.org/libdrm/$LIBDRM_VERSION.tar.bz2
-  - tar -jxvf $LIBDRM_VERSION.tar.bz2
-  - (cd $LIBDRM_VERSION && ./configure --prefix=$HOME/prefix --enable-vc4 && make install)
-
-  - wget $XORG_RELEASES/lib/$LIBXSHMFENCE_VERSION.tar.bz2
-  - tar -jxvf $LIBXSHMFENCE_VERSION.tar.bz2
-  - (cd $LIBXSHMFENCE_VERSION && ./configure --prefix=$HOME/prefix && make install)
+- ${DOCKER_EXEC_ROOT} apt-get update -qq
+- |
+  ${DOCKER_EXEC} \
+    mk-build-deps --install --remove \
+      --host-arch ${JOB_ARCH} \
+      --root-cmd sudo \
+      --tool 'apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y --allow-unauthenticated'
 
 script:
-  - if test "x$BUILD" = xmake; then
-      ./autogen.sh --enable-debug
-        --with-egl-platforms=x11,drm
-        --with-dri-drivers=i915,i965,radeon,r200,swrast,nouveau
-        --with-gallium-drivers=svga,swrast,vc4,virgl,r300,r600
-        --disable-llvm-shared-libs
-        ;
-      make && make check;
-    elif test x$BUILD = xscons; then
-      scons;
-    fi
+- ${DOCKER_EXEC} dpkg-buildpackage --host-arch ${JOB_ARCH} -i -us -uc -b
+- ${DOCKER_EXEC} make -C build -j $(nproc) check
+
+before_deploy:
+- |
+  cat debian/bintray.json.in | \
+    sed -e "s#@BINTRAY_PACKAGE@#$(cat debian/control | grep ^Source: | awk '{print $2}')#g" \
+        -e "s#@BINTRAY_USER@#${BINTRAY_USER}#g" \
+        -e "s#@BINTRAY_REPO@#${BINTRAY_REPO}#g" \
+        -e "s#@BINTRAY_DESC@#${BINTRAY_DESC}#g" \
+        -e "s#@GITHUB_REPO@#${TRAVIS_REPO_SLUG}#g" \
+        -e "s,@BINTRAY_VERSION@,$(cat debian/changelog | head -n 1 | sed 's,.*(\(.*\)).*,\1,'),g" \
+        -e "s#@BINTRAY_RELEASE_DATE@#$(cat debian/changelog | grep -m 1 '^ -- ' | sed 's,^.*  ,,')#g" \
+        -e "s#@BINTRAY_OUTDIR@#$(dirname ${TRAVIS_BUILD_DIR})#g" \
+        -e "s#@BINTRAY_POOLABBR@#$(cat debian/control | grep ^Source: | awk '{print $2}' | cut -c1)#g" \
+        -e "s#@BINTRAY_SUITE@#$(${DOCKER_EXEC_NOTTY} cat /etc/apt/sources.list | grep -m 1 '^deb ' | awk '{print $3}')#g" \
+        -e "s#@BINTRAY_COMPONENT@#${BINTRAY_COMPONENT}#g" \
+        -e "s#@BINTRAY_ARCH@#${JOB_ARCH}#g" | \
+    tee debian/bintray.json
+
+deploy:
+- provider: bintray
+  file: debian/bintray.json
+  user: vicamo
+  key:
+    secure: "MkkD+5/dr6ORZPQToBXFNOCjkMYdMbFnVXi7EU4odA8l8HdM14qwIV/fSo4XRuDyDIJx0lpCmBpYHv6sS3Px7JA7imuTvjXAGgLH8DpaFAtAXy6WcBdqq7AhK5ZLDrIni2+7KsPa9oFdTN84WDeiyPi/sg4oraxo+M8g93yMiNDLyaHzWnohvPqWNaxLcMGAg9PuQAHUIHFNy+EaH+XIxUVJdgG+uirVzxychDkH8L62cpd4K5QvHVvJh3WT9+n7OUvrrTR9rB3ax/40VDv7mhRWhy97g9T46Pmc8OnoY8m/jnaDCguFWoriIwdwzs84YkuctbhQ0OrC0aoRK09DjaU3HqEw9AmSBD0UIBJRVdrh9TCwLYhBQbUyw2X9zh5Z39A1bkccDb9Ud+x8vTQzy9+L61xBu22yXCX1jgjzdgxSUquNfm7SbXTcj0adJh6wcVhjQl8mn/qIMiVSiU3Shgq3fpJl5PIZo4pWrGTA5ZQ9/qreXFHTOHKIhQiTWygIVb2vjg5fo4uk4NJBqASaudNQskhmXSJ3G615Jgasv4RJK3zgGJVQJnxwRAFmu7PBwySre9JSqGja5G1YcVhwcdE2ACfYNDKLiCPSdPFd/KdYY4dESJUg1UIlChQJZ1AluUrKWtrK3KOlJ9bNph/eVo5jHuLmtbiPUIPKcQtH8WQ="
+  on:
+    branch: release
+
+notifications:
+  slack:
+    rooms:
+    - secure: "BTZNHf0HeJmhbhD3jXqbIH3lvepAaBfDoYSnkshHZ0jy+Soob2CPPuwIV8uzkrJ6BKXCvpBjcGCfOtv/bp7qRVnfgurcDKd6sidu1yQO9xzRwVu8Y5ljteAm4cffG3aqGD6sYGFaKRUpET1bDFcgutq4XPV4Yh2sjzmLkF4IY8l9uHEwvE7w3o7KUS4R35ZgA6+2yuF2ciURpRm/2e6gGrwF8g0Nd8ObCuAW3mGQXA9MZO/PUGzCt8wH5MHPg0ZGVXZhrwgqGFoDCxDxepB+yFOrviuRYcUUUCcfvpjgJSzfGCP25Ifre4gSb8qoC1LJvkve/mD1WU8QPP0nEjJH52coWNFBO5O44WNOww8T7n+bu0DsQiB4LMzjF1Ss35T/N0Sui0U3Vc7x69gW+bP5YwaaYxfnqlAdshT9ilrSQEcNxWzWi3MHPww1LVcbC11bhAKrxqeln4TK8g42r12dErxUHf/6987dsbaHNtxmkx7Bzt96ip5kIK7PhPCSlbCtmKboSPfsmtGGVuEHadtIOJygXG+Zdtep2fTpqqKmj5QtqWJahwXpNwKVzMqDmqF0RgVqOx2+AxegyBxApSOuGXESiLZI1uA+2Pkc08mzatJdmBqKChh/xyEwsIlBDSWw6hPGjB9FfzXuNlaxGVu9xdLISZdl8yamCMJwTxjmB8U="
