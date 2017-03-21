@@ -133,6 +133,10 @@ confflags += \
 	$(confflags_GLES) \
 	$(buildflags)
 
+# Work-around Travis-CI's hard 4MB log file size.
+confflags += \
+	--enable-silent-rules
+
 override_dh_clean:
 	rm -rf .pc
 	rm -rf build
