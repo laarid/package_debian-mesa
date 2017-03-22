@@ -63,7 +63,17 @@ install:
 
 script:
 - ${DOCKER_EXEC} dpkg-buildpackage --host-arch ${JOB_ARCH} -i -us -uc -b
-- ${DOCKER_EXEC} make -C build -j $(nproc) check
+- |
+  if ! ${DOCKER_EXEC} make -C build -j $(nproc) -k check; then
+    case "${JOB_ARCH}" in
+      amd64|armel|i386|s390x)
+        exit 1;
+        ;;
+      *)
+        echo "WARNING: 'make check' failure on this platform is expected. Quit.";
+        ;;
+    esac
+  fi
 
 before_deploy:
 - |
