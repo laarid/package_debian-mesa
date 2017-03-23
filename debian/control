@@ -48,6 +48,10 @@ Build-Depends:
  libwayland-dev (>= 1.2.0) [linux-any],
  libclang-3.9-dev (>= 1:3.9.1) [amd64 i386 kfreebsd-amd64 kfreebsd-i386 arm64 armhf],
  libclc-dev (>= 0.2.0+git20160907) [amd64 i386 kfreebsd-amd64 kfreebsd-i386 arm64 armhf],
+ libandroid-cutils0-dev (>= 0.0.16) [linux-any],
+ libandroid-gralloc-drm0-dev (>= 0.0.2) [linux-any],
+ libandroid-hardware0-dev (>= 0.0.1+b1) [linux-any],
+ libandroid-sync0-dev (>= 0.0.16) [linux-any],
 Vcs-Git: https://anonscm.debian.org/git/pkg-xorg/lib/mesa.git
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-xorg/lib/mesa.git
 Homepage: https://mesa3d.org/

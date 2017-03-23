@@ -84,6 +84,9 @@ LIBOMXIL_BELLAGIO_REQUIRED=0.0
 LIBVA_REQUIRED=0.38.0
 VDPAU_REQUIRED=1.1
 WAYLAND_REQUIRED=1.2.0
+ANDROID_CORE_REQUIRED=0.0.16
+ANDROID_HARDWARE_REQUIRED=0.0.1
+ANDROID_GRALLOC_DRM_REQUIRED=0.0.2
 XCB_REQUIRED=1.9.3
 XCBDRI2_REQUIRED=1.8
 XCBGLX_REQUIRED=1.8.1
@@ -254,9 +257,13 @@ DEFINES="-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS"
 AC_SUBST([DEFINES])
 android=no
 case "$host_os" in
-*-android)
+linux*|*-android)
     android=yes
+    DEFINES="$DEFINES -DANDROID_VERSION=0x0700"
     ;;
+esac
+
+case "$host_os" in
 linux*|*-gnu*|gnu*|cygwin*)
     DEFINES="$DEFINES -D_GNU_SOURCE"
     ;;
@@ -2055,6 +2062,7 @@ for plat in $egl_platforms; do
 		;;
 
 	android)
+		PKG_CHECK_MODULES([ANDROID], [android-log-0.0 >= $ANDROID_CORE_REQUIRED, android-cutils-0.0 >= $ANDROID_CORE_REQUIRED android-sync-0.0 >= $ANDROID_CORE_REQUIRED android-hardware-0.0 >= $ANDROID_HARDWARE_REQUIRED android-gralloc-drm-0.0 >= $ANDROID_GRALLOC_DRM_REQUIRED])
 		;;
 
 	*)
